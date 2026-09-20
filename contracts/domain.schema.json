@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "城市赛事承办评估领域事件",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "aggregate_type",
+    "aggregate_id",
+    "occurred_at",
+    "version",
+    "summary"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "APPLICATION_RECEIVED",
+        "CONSTRAINT_REGISTERED",
+        "SCENARIO_EVALUATED",
+        "OPINION_RECORDED",
+        "DECISION_PUBLISHED"
+      ]
+    },
+    "aggregate_type": {
+      "type": "string",
+      "enum": [
+        "hosting_application",
+        "resource_constraint",
+        "review_scenario",
+        "decision_release"
+      ]
+    },
+    "aggregate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

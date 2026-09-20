@@ -1,0 +1,9 @@
+{
+  "event_id": "092103-002-sample-001",
+  "event_type": "APPLICATION_RECEIVED",
+  "aggregate_type": "hosting_application",
+  "aggregate_id": "city_event_bid_review-001",
+  "occurred_at": "2026-09-20T16:00:00+08:00",
+  "version": 1,
+  "summary": "城市赛事承办评估联调样例"
+}
