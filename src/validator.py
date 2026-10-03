@@ -1,9 +1,18 @@
-"""校验领域事件公共字段。"""
+"""向后兼容入口：公共字段校验已迁入 src.contracts。
 
-REQUIRED = ("event_id", "event_type", "aggregate_type", "aggregate_id", "occurred_at", "version", "summary")
+保留 from src.validator import validate_event 的既有用法。
+"""
+from src.contracts import validate_event  # noqa: F401  向后兼容的重导出
 
-def validate_event(record: dict) -> list[str]:
-    errors = [f"缺少字段：{name}" for name in REQUIRED if name not in record]
-    if "version" in record and (not isinstance(record["version"], int) or record["version"] < 1):
-        errors.append("version 必须是正整数")
-    return errors
+__all__ = ["validate_event", "REQUIRED"]
+
+# 仅信封必填字段（早期版本口径），供旧调用方引用
+REQUIRED = (
+    "event_id",
+    "event_type",
+    "aggregate_type",
+    "aggregate_id",
+    "occurred_at",
+    "version",
+    "summary",
+)

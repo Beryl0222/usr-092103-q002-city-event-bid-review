@@ -1,0 +1,18 @@
+{
+  "event_id": "venue-calendar:V-STADIUM:2026-09-01",
+  "event_type": "CONSTRAINT_REGISTERED",
+  "aggregate_type": "resource_constraint",
+  "aggregate_id": "venue-v-stadium",
+  "occurred_at": "2026-09-01T09:00:00+08:00",
+  "version": 1,
+  "summary": "场馆日历同步：市体育中心体育场容量登记",
+  "actor": { "role": "RESOURCE_SYSTEM" },
+  "source_system": "venue-calendar",
+  "source_ref": "场登[2026]主01",
+  "payload": {
+    "resource_type": "VENUE",
+    "resource_code": "V-STADIUM",
+    "resource_name": "市体育中心体育场",
+    "capacity": { "approved_capacity": 60000, "safe_load_ratio": 0.9 }
+  }
+}

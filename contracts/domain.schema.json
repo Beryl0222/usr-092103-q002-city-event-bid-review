@@ -1,6 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sports-bureau.example.com/contracts/domain.schema.json",
   "title": "城市赛事承办评估领域事件",
+  "description": "跨模块交换的公共信封与事件载荷。event_id/event_type/aggregate_type/aggregate_id 为稳定标识，外部系统更新只允许新增事件、不得改写既有事件。",
   "type": "object",
   "required": [
     "event_id",
@@ -14,12 +16,14 @@
   "properties": {
     "event_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "事件全局唯一标识，外部喂送事件沿用来源系统编号（建议加来源前缀），用于幂等与溯源。"
     },
     "event_type": {
       "type": "string",
       "enum": [
         "APPLICATION_RECEIVED",
+        "APPLICATION_AMENDED",
         "CONSTRAINT_REGISTERED",
         "SCENARIO_EVALUATED",
         "OPINION_RECORDED",
@@ -45,12 +49,421 @@
     },
     "version": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 1,
+      "description": "同一聚合内单调递增；无实质变化的重算不得产生新版本。"
     },
     "summary": {
       "type": "string",
       "minLength": 1
+    },
+    "payload": {
+      "type": "object",
+      "description": "事件业务载荷，结构随 event_type 而定，见各 *Payload 定义。"
+    },
+    "actor": {
+      "type": "object",
+      "description": "触发该事件的角色。系统测算事件使用 SYSTEM；批准只允许 COMPETENT_AUTHORITY。",
+      "required": ["role"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "APPLICANT",
+            "EXPERT",
+            "COMPETENT_AUTHORITY",
+            "RESOURCE_SYSTEM",
+            "SYSTEM"
+          ]
+        },
+        "name": { "type": "string" },
+        "title": { "type": "string" }
+      }
+    },
+    "source_system": {
+      "type": "string",
+      "description": "外部更新的来源系统标识，如 venue-calendar / police-duty / traffic-center / budget-ledger。"
+    },
+    "source_ref": {
+      "type": "string",
+      "description": "来源系统中的文号、台账编号或记录主键，约束溯源用。"
+    },
+    "correlation_id": { "type": "string" },
+    "causation_id": { "type": "string" },
+    "idempotency_key": { "type": "string" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "dateWindow": {
+      "type": "object",
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" }
+      }
+    },
+    "applicationPayload": {
+      "type": "object",
+      "required": [
+        "application_code",
+        "event_name",
+        "event_level",
+        "time_requirement",
+        "venue_requirement",
+        "expected_attendance",
+        "funding_structure",
+        "safety_responsibility",
+        "market_development",
+        "legacy_plan"
+      ],
+      "properties": {
+        "application_code": { "type": "string", "minLength": 1 },
+        "event_name": { "type": "string", "minLength": 1 },
+        "event_level": {
+          "type": "string",
+          "enum": [
+            "PRO_LEAGUE",
+            "MASS_PARTICIPATION",
+            "INTERNATIONAL_INVITATIONAL",
+            "OTHER"
+          ]
+        },
+        "applicant": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "contact": { "type": "string" },
+            "credit_code": { "type": "string" }
+          }
+        },
+        "time_requirement": {
+          "type": "object",
+          "required": ["preferred_windows", "flexibility"],
+          "properties": {
+            "preferred_windows": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/dateWindow" }
+            },
+            "flexibility": {
+              "type": "string",
+              "enum": ["FIXED", "WEEKEND_FLEXIBLE", "WINDOW_FLEXIBLE"]
+            },
+            "flex_days": { "type": "integer", "minimum": 0 },
+            "setup_days": { "type": "integer", "minimum": 0 },
+            "teardown_days": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "venue_requirement": {
+          "type": "object",
+          "required": ["primary_venue_code"],
+          "properties": {
+            "primary_venue_code": { "type": "string" },
+            "fallback_venue_codes": { "type": "array", "items": { "type": "string" } },
+            "min_capacity": { "type": "integer", "minimum": 0 },
+            "venue_features": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "expected_attendance": {
+          "type": "object",
+          "required": ["single_day_peak"],
+          "properties": {
+            "single_day_peak": { "type": "integer", "minimum": 0 },
+            "total": { "type": "integer", "minimum": 0 },
+            "participants": { "type": "integer", "minimum": 0 },
+            "spectator_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "funding_structure": {
+          "type": "object",
+          "required": ["total_budget_cny", "government_request_cny"],
+          "properties": {
+            "total_budget_cny": { "type": "number", "minimum": 0 },
+            "applicant_self_raised_cny": { "type": "number", "minimum": 0 },
+            "sponsorship_cny": { "type": "number", "minimum": 0 },
+            "market_revenue_cny": { "type": "number", "minimum": 0 },
+            "government_request_cny": { "type": "number", "minimum": 0 },
+            "contingency_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "safety_responsibility": {
+          "type": "object",
+          "required": ["responsible_party"],
+          "properties": {
+            "responsible_party": {
+              "type": "string",
+              "enum": ["APPLICANT", "CO_HOST", "GOVERNMENT"]
+            },
+            "insurance_amount_cny": { "type": "number", "minimum": 0 },
+            "medical_stations": { "type": "integer", "minimum": 0 },
+            "security_plan_ref": { "type": "string" },
+            "co_host_codes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "market_development": {
+          "type": "object",
+          "properties": {
+            "broadcast_plan": { "type": "string" },
+            "sponsorship_tiers": { "type": "array", "items": { "type": "string" } },
+            "expected_direct_revenue_cny": { "type": "number", "minimum": 0 },
+            "expected_indirect_revenue_cny": { "type": "number", "minimum": 0 }
+          }
+        },
+        "legacy_plan": {
+          "type": "object",
+          "required": ["post_event_utilization"],
+          "properties": {
+            "facility_upgrade": { "type": "string" },
+            "mass_sports_funding_cny": { "type": "number", "minimum": 0 },
+            "youth_programs": { "type": "string" },
+            "post_event_utilization": { "type": "string" }
+          }
+        },
+        "amendment": {
+          "type": "object",
+          "description": "仅 APPLICATION_AMENDED 使用：说明更正类型与受影响字段。",
+          "required": ["amendment_type", "changed_fields"],
+          "properties": {
+            "amendment_type": {
+              "type": "string",
+              "enum": [
+                "VENUE_CHANGE",
+                "CO_HOSTING",
+                "POSTPONEMENT",
+                "MATERIAL_CORRECTION"
+              ]
+            },
+            "changed_fields": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" }
+            },
+            "reason": { "type": "string" }
+          }
+        }
+      }
+    },
+    "constraintPayload": {
+      "type": "object",
+      "required": ["resource_type", "resource_code"],
+      "properties": {
+        "resource_type": {
+          "type": "string",
+          "enum": ["VENUE", "POLICE", "TRAFFIC", "BUDGET", "HISTORY"]
+        },
+        "resource_code": { "type": "string", "minLength": 1 },
+        "resource_name": { "type": "string" },
+        "capacity": { "type": "object" },
+        "blocked_windows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dateWindow" }
+        },
+        "blocked_reason": { "type": "string" },
+        "records": {
+          "type": "array",
+          "description": "HISTORY：历史履约记录，applicant_code 关联申请方。",
+          "items": {
+            "type": "object",
+            "required": ["applicant_code", "year", "performance"],
+            "properties": {
+              "applicant_code": { "type": "string" },
+              "year": { "type": "integer" },
+              "event_name": { "type": "string" },
+              "performance": {
+                "type": "string",
+                "enum": ["GOOD", "ACCEPTABLE", "POOR", "BREACH"]
+              },
+              "note": { "type": "string" }
+            }
+          }
+        },
+        "fiscal_year": { "type": "integer" }
+      }
+    },
+    "scenarioPayload": {
+      "type": "object",
+      "required": [
+        "scenario_code",
+        "application_codes",
+        "window",
+        "fiscal_year",
+        "verdict",
+        "metrics",
+        "assumptions",
+        "conflicts",
+        "scores"
+      ],
+      "properties": {
+        "scenario_code": { "type": "string" },
+        "combination_id": { "type": "string" },
+        "application_codes": { "type": "array", "items": { "type": "string" } },
+        "window": { "$ref": "#/$defs/dateWindow" },
+        "fiscal_year": { "type": "integer" },
+        "plan_type": {
+          "type": "string",
+          "enum": ["SAME_WEEKEND", "STAGGERED", "CO_HOSTED"]
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["FEASIBLE", "CONDITIONAL", "INFEASIBLE"],
+          "description": "系统测算结论：可行/有条件可行/不可行。这不是批准，批准只能由有权部门经 DECISION_PUBLISHED 作出。"
+        },
+        "metrics": { "type": "object" },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "statement"],
+            "properties": {
+              "key": { "type": "string" },
+              "statement": { "type": "string" },
+              "basis_event_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "dimension", "severity", "message", "evidence_class"],
+            "properties": {
+              "code": { "type": "string" },
+              "dimension": {
+                "type": "string",
+                "enum": ["VENUE", "POLICE", "TRAFFIC", "BUDGET", "HISTORY", "MATERIAL"]
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["BLOCKER", "WARNING", "INFO"]
+              },
+              "message": { "type": "string" },
+              "source_refs": { "type": "array", "items": { "type": "string" } },
+              "evidence_class": {
+                "type": "string",
+                "enum": ["OBJECTIVE", "ASSUMPTION", "EXPERT"]
+              }
+            }
+          }
+        },
+        "scores": {
+          "type": "object",
+          "description": "四维参考分，0-100；财政风险/交通冲突为越高越好（即风险/冲突越低分越高）。",
+          "properties": {
+            "mass_participation": { "type": "number" },
+            "fiscal_safety": { "type": "number" },
+            "traffic_smoothness": { "type": "number" },
+            "market_return": { "type": "number" }
+          }
+        },
+        "conditions": { "type": "array", "items": { "type": "string" } },
+        "based_on_event_ids": { "type": "array", "items": { "type": "string" } },
+        "reevaluated_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "本次仅因哪些字段变化触发重算。"
+        }
+      }
+    },
+    "opinionPayload": {
+      "type": "object",
+      "required": ["scenario_code", "expert", "dimension", "statement"],
+      "properties": {
+        "scenario_code": { "type": "string" },
+        "scenario_version": { "type": "integer" },
+        "expert": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string" },
+            "title": { "type": "string" }
+          }
+        },
+        "dimension": {
+          "type": "string",
+          "enum": ["MASS_SPORTS", "FISCAL", "TRAFFIC", "MARKET", "SAFETY", "OVERALL"]
+        },
+        "statement": { "type": "string" },
+        "weight_suggestion": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence_class": { "const": "EXPERT" }
+      }
+    },
+    "decisionPayload": {
+      "type": "object",
+      "required": [
+        "scenario_code",
+        "scenario_version",
+        "deciding_authority",
+        "decision_ref",
+        "decision"
+      ],
+      "properties": {
+        "scenario_code": { "type": "string" },
+        "scenario_version": { "type": "integer" },
+        "deciding_authority": { "type": "string", "minLength": 1 },
+        "decision_ref": { "type": "string", "minLength": 1, "description": "批复文号，留痕必备。" },
+        "decision": {
+          "type": "string",
+          "enum": ["APPROVED", "REJECTED", "DEFERRED"]
+        },
+        "conditions": { "type": "array", "items": { "type": "string" } },
+        "rationale": { "type": "string" },
+        "published": { "type": "boolean" }
+      }
     }
   },
-  "additionalProperties": true
+  "allOf": [
+    {
+      "if": { "properties": { "event_type": { "const": "APPLICATION_RECEIVED" } } },
+      "then": {
+        "properties": {
+          "aggregate_type": { "const": "hosting_application" },
+          "payload": { "$ref": "#/$defs/applicationPayload" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "APPLICATION_AMENDED" } } },
+      "then": {
+        "properties": {
+          "aggregate_type": { "const": "hosting_application" },
+          "payload": { "$ref": "#/$defs/applicationPayload" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "CONSTRAINT_REGISTERED" } } },
+      "then": {
+        "properties": {
+          "aggregate_type": { "const": "resource_constraint" },
+          "payload": { "$ref": "#/$defs/constraintPayload" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "SCENARIO_EVALUATED" } } },
+      "then": {
+        "properties": {
+          "aggregate_type": { "const": "review_scenario" },
+          "payload": { "$ref": "#/$defs/scenarioPayload" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "OPINION_RECORDED" } } },
+      "then": {
+        "properties": {
+          "aggregate_type": { "const": "review_scenario" },
+          "payload": { "$ref": "#/$defs/opinionPayload" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "DECISION_PUBLISHED" } } },
+      "then": {
+        "properties": {
+          "aggregate_type": { "const": "decision_release" },
+          "payload": { "$ref": "#/$defs/decisionPayload" }
+        }
+      }
+    }
+  ]
 }

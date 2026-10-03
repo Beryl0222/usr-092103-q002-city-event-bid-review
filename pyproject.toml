@@ -1,5 +1,5 @@
 [project]
-name = "domain-event-contract"
-version = "0.1.0"
-description = "领域事件基础校验"
+name = "city-event-hosting-review"
+version = "0.2.0"
+description = "城市赛事承办联审：同周末资源核对、组合测算、专家意见与留痕决策（系统不代批）"
 requires-python = ">=3.11"
